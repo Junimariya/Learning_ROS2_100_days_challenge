@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+<robot name="two_wheeled_robot" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:include filename="$(find caster_wheel)/urdf/caster_wheel.urdf.xacro" />
+
+  <!-- ======================================================================================================= -->
+  <!-- Properties / Constants -->
+  <!-- ======================================================================================================= -->
+
+  <!-- Base Dimensions -->
+  <xacro:property name="base_x" value="0.3" />  <!-- Length of the base -->
+  <xacro:property name="base_y" value="0.2" />  <!-- Width of the base -->
+  <xacro:property name="base_z" value="0.1" />  <!-- Height of the base -->
+  <xacro:property name="base_mass" value="5.0" /> <!-- Mass of the base in kg -->
+
+  <!-- Wheel Dimensions -->
+  <xacro:property name="wheel_radius" value="0.05" /> <!-- Radius of the wheels -->
+  <xacro:property name="wheel_thickness" value="0.02" /> <!-- Thickness of the wheels -->
+  <xacro:property name="wheel_offset_x" value="0.0" />   <!-- X-offset of wheels from base center -->
+  <xacro:property name="wheel_offset_y" value="${base_y / 2 + wheel_thickness / 2}" /> <!-- Y-offset to place wheels outside base -->
+  <xacro:property name="wheel_offset_z" value="${-base_z / 2 + wheel_radius}" /> <!-- Z-offset to align wheels with base bottom -->
+  <xacro:property name="wheel_mass" value="0.5" /> <!-- Mass of each wheel in kg -->
+  
+  
+  <!-- Head Dimensions -->
+  <xacro:property name="head_x" value="0.05" />
+  <xacro:property name="head_y" value="0.05" />
+  <xacro:property name="head_z" value="0.05" />
+  <xacro:property name="head_offset_z" value="${base_z / 2 + head_z / 2}" />
+  <xacro:property name="head_mass" value="0.1" />
+
+  <!-- ======================================================================================================= -->
+  <!-- Materials for Gazebo visualization -->
+  <!-- ======================================================================================================= -->
+
+  <material name="blue">
+    <color rgba="0 0 0.8 1"/>
+  </material>
+  <material name="black">
+    <color rgba="0 0 0 1"/>
+  </material>
+  <material name="green">
+    <color rgba="0 0.8 0 1"/>
+  </material>
+
+  <!-- ======================================================================================================= -->
+  <!-- Inertia Macros (for calculating moments of inertia) -->
+  <!-- ======================================================================================================= -->
+
+  <!-- Box inertia calculation (length, width, height, mass) -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertia  ixx="${m * (y*y + z*z) / 12}" ixy="0" ixz="0"
+              iyy="${m * (x*x + z*z) / 12}" iyz="0"
+              izz="${m * (x*x + y*y) / 12}" />
+  </xacro:macro>
+
+  <!-- Cylinder inertia calculation (mass, radius, length) -->
+  <xacro:macro name="cylinder_inertia" params="m r h">
+    <inertia  ixx="${m * (3*r*r + h*h) / 12}" ixy="0" ixz="0"
+              iyy="${m * (3*r*r + h*h) / 12}" iyz="0"
+              izz="${m * r*r / 2}" />
+  </xacro:macro>
+
+  <!-- ======================================================================================================= -->
+  <!-- Base Link -->
+  <!-- ======================================================================================================= -->
+
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${base_x} ${base_y} ${base_z}"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${base_x} ${base_y} ${base_z}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${base_mass}"/>
+      <xacro:box_inertia m="${base_mass}" x="${base_x}" y="${base_y}" z="${base_z}"/>
+    </inertial>
+  </link>
+
+  <!-- ======================================================================================================= -->
+  <!-- Wheel Macros -->
+  <!-- ======================================================================================================= -->
+
+  <!-- Macro for creating a wheel (side: left or right) -->
+  <xacro:macro name="wheel" params="side">
+    <link name="${side}_wheel_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/> <!-- Rotate cylinder to align with Y-axis for wheel -->
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+        </geometry>
+        <material name="black"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+        </geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <mass value="${wheel_mass}"/>
+        <!-- Use cylinder_inertia macro, note orientation in visual/collision -->
+        <xacro:cylinder_inertia m="${wheel_mass}" r="${wheel_radius}" h="${wheel_thickness}"/>
+      </inertial>
+    </link>
+
+    <joint name="${side}_wheel_joint" type="continuous">
+      <origin xyz="${wheel_offset_x} ${wheel_offset_y * (1 if side == 'left' else -1)} ${wheel_offset_z}" rpy="0 0 0"/>
+      <parent link="base_link"/>
+      <child link="${side}_wheel_link"/>
+      <axis xyz="0 1 0"/> <!-- Axis of rotation for wheels (Y-axis) -->
+    </joint>
+
+    <!-- Gazebo plugin for wheel joint (for simulation) -->
+    <gazebo reference="${side}_wheel_link">
+      <material>Gazebo/Black</material>
+    </gazebo>
+  </xacro:macro>
+
+  <!-- Create left and right wheels using the macro -->
+  <xacro:wheel side="left"/>
+  <xacro:wheel side="right"/>
+
+  <!-- ======================================================================================================= -->
+  <!-- Head Link (optional) -->
+  <!-- ======================================================================================================= -->
+
+  <link name="head_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${head_x} ${head_y} ${head_z}"/>
+      </geometry>
+      <material name="green"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="${head_x} ${head_y} ${head_z}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${head_mass}"/>
+      <xacro:box_inertia m="${head_mass}" x="${head_x}" y="${head_y}" z="${head_z}"/>
+    </inertial>
+  </link>
+
+  <joint name="head_joint" type="fixed">
+    <origin xyz="0 0 ${head_offset_z}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="head_link"/>
+  </joint>
+  
+  <xacro:caster_wheel
+  prefix="front"
+  parent_link="base_link"
+  base_x="${base_x}"
+  base_z="${0.05}" />
+
+
+  <!-- Gazebo plugin for base and head (for simulation) -->
+  <gazebo reference="base_link">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+  <gazebo reference="head_link">
+    <material>Gazebo/Green</material>
+  </gazebo>
+
+  <!-- ======================================================================================================= -->
+  <!-- Gazebo Control Plugins -->
+  <!-- ======================================================================================================= -->
+
+  <!-- Differential drive controller for the robot (needed for movement in Gazebo) -->
+
+
+</robot>

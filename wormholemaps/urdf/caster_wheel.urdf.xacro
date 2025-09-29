@@ -1,0 +1,60 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:macro name="caster_wheel" params="prefix parent_link base_x base_z">
+
+
+  <!-- Caster Ball Dimensions -->
+<xacro:property name="caster_radius" value="0.025"/> <!-- Small sphere caster -->
+<xacro:property name="caster_mass" value="0.2"/>
+<xacro:property name="caster_offset_x" value="${base_x / 2 - caster_radius}"/> <!-- Place at front -->
+<xacro:property name="caster_offset_z" value="${-base_z / 2 - caster_radius}"/> <!-- Touch ground -->
+
+
+
+
+
+
+
+
+
+
+  <!-- ======================================================================================================= -->
+<!-- Caster Ball Link -->
+  <!-- ======================================================================================================= -->
+
+
+<link name="caster_link">
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <sphere radius="${caster_radius}"/>
+    </geometry>
+    <material name="black"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <sphere radius="${caster_radius}"/>
+    </geometry>
+  </collision>
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="${caster_mass}"/>
+    <inertia ixx="0.0001" ixy="0" ixz="0"
+             iyy="0.0001" iyz="0"
+             izz="0.0001"/>
+  </inertial>
+</link>
+
+<!-- Fixed Joint to attach caster -->
+<joint name="caster_joint" type="fixed">
+  <origin xyz="${caster_offset_x} 0 ${caster_offset_z}" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="caster_link"/>
+</joint>
+
+<gazebo reference="caster_link">
+  <material>Gazebo/Black</material>
+</gazebo>
+
